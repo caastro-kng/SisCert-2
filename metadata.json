@@ -1,0 +1,6 @@
+{
+  "name": "Sistema de Certificados",
+  "description": "Sistema institucional para emissão, gerenciamento e validação de certificados oficiais com pré-visualização em tempo real e exportação em PDF A4.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
