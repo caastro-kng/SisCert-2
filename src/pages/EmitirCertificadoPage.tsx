@@ -240,7 +240,7 @@ export const EmitirCertificadoPage: React.FC<EmitirCertificadoPageProps> = ({
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
       const seenCpfs = new Set<string>();
-      const imported = rows.map((row) => {
+      const candidates = rows.map((row) => {
         const values = Object.fromEntries(Object.entries(row).map(([key, value]) => [key.trim().toUpperCase(), value]));
         return {
           name: normalizeName(String(values.NOME || '')),
@@ -248,7 +248,8 @@ export const EmitirCertificadoPage: React.FC<EmitirCertificadoPageProps> = ({
           registrationNumber: normalizeRenach(String(values.RENACH || '')),
           category: normalizeCategory(String(values.CAT || values.CATEGORIA || '')),
         };
-      }).filter((participant) => {
+      }).filter((participant) => participant.name || participant.cpf || participant.registrationNumber || participant.category);
+      const imported = candidates.filter((participant) => {
         const valid = participant.name.split(' ').length >= 2
           && validateCPF(participant.cpf)
           && isValidRenach(participant.registrationNumber)
@@ -261,7 +262,8 @@ export const EmitirCertificadoPage: React.FC<EmitirCertificadoPageProps> = ({
       setAddedParticipants(imported);
       setEmissionMode('batch');
       setErrors({});
-      setImportSummary(`${imported.length} participante${imported.length === 1 ? '' : 's'} carregado${imported.length === 1 ? '' : 's'} para revisão.`);
+      const skipped = candidates.length - imported.length;
+      setImportSummary(`${imported.length} participante${imported.length === 1 ? '' : 's'} carregado${imported.length === 1 ? '' : 's'} para revisão.${skipped ? ` ${skipped} linha${skipped === 1 ? '' : 's'} com dados incompletos, inválidos ou duplicados foi ignorada.` : ''}`);
     } catch (error) {
       setErrors((current) => ({ ...current, spreadsheet: error instanceof Error ? error.message : 'Não foi possível ler a planilha.' }));
     }
