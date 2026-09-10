@@ -6,17 +6,18 @@ import { Certificate } from '../types';
  */
 export function generateNextCertificateNumber(
   existingCertificates: Certificate[],
-  year = new Date().getFullYear()
+  year = new Date().getFullYear(),
+  courseCode = 'CVTE'
 ): string {
   const yearStr = String(year);
   let maxSeq = 0;
 
   existingCertificates.forEach((cert) => {
-    const match = cert.certificateNumber.trim().match(new RegExp(`^(\\d+)/CVTE/${yearStr}$`, 'i'));
+    const match = cert.certificateNumber.trim().match(new RegExp(`^(\\d+)/${courseCode}/${yearStr}$`, 'i'));
     if (!match) return;
     const seq = Number.parseInt(match[1], 10);
     if (Number.isFinite(seq) && seq > maxSeq) maxSeq = seq;
   });
 
-  return `${String(maxSeq + 1).padStart(3, '0')}/CVTE/${yearStr}`;
+  return `${String(maxSeq + 1).padStart(3, '0')}/${courseCode}/${yearStr}`;
 }

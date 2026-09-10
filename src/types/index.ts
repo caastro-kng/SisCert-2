@@ -5,6 +5,8 @@ export interface SubjectDetail {
   instructorName: string;
 }
 
+export type CourseCode = 'CVTE' | 'MOPP' | 'CTCP' | 'CVTCI';
+
 export interface Certificate {
   id: string;
   certificateNumber: string;
@@ -12,6 +14,7 @@ export interface Certificate {
   cpf: string;
   registrationNumber: string;
   category: string;
+  courseCode?: CourseCode;
   course: string;
   startDate: string;
   endDate: string;

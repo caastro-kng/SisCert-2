@@ -1,4 +1,4 @@
-import { Certificate, AuditLog, InstitutionConfig } from '../types';
+import { Certificate, AuditLog, CourseCode, InstitutionConfig } from '../types';
 
 export const DEFAULT_INSTITUTION_CONFIG: InstitutionConfig = {
   institutionName: 'Instituição de Ensino de Trânsito da Base Administrativa do Quartel-General do Exército – Forte Caxias',
@@ -16,6 +16,12 @@ export const DEFAULT_INSTITUTION_CONFIG: InstitutionConfig = {
 
 export const CVTE_COURSE = 'Curso Especializado para Condutores de Veículos de Transporte de Emergência';
 export const CVTE_DEFAULT_WORKLOAD = 50;
+export const COURSE_OPTIONS: Record<CourseCode, string> = {
+  CVTE: CVTE_COURSE,
+  MOPP: 'Curso Especializado para Condutores de Veículos de Transporte de Produto Perigoso',
+  CTCP: 'Curso Especializado para Condutores de Transporte Coletivo de Passageiros',
+  CVTCI: 'Curso Especializado para Condutores de Veículos de Transporte de Carga Indivisível',
+};
 export const INITIAL_CERTIFICATES: Certificate[] = [];
 export const INITIAL_LOGS: AuditLog[] = [];
 
@@ -41,7 +47,8 @@ export function getStoredCertificates(): Certificate[] {
         const { validationCode, templateId, ...certificate } = c;
         return {
           ...certificate,
-          course: CVTE_COURSE,
+          courseCode: certificate.courseCode || 'CVTE',
+          course: certificate.course || CVTE_COURSE,
         } as Certificate;
       });
 

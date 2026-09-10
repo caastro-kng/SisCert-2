@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
-import { Certificate, InstitutionConfig, SubjectDetail } from '../types';
+import { Certificate, CourseCode, InstitutionConfig, SubjectDetail } from '../types';
 import { CertificateDocument } from '../components/certificate/CertificateDocument';
 import { CertificatePreviewModal } from '../components/certificate/CertificatePreviewModal';
 import { ConfirmModal } from '../components/common/ConfirmModal';
@@ -10,7 +10,7 @@ import { formatCPF, validateCPF } from '../utils/cpf';
 import { formatDateBR, formatPeriodBR, getTodayISO } from '../utils/date';
 import { generateNextCertificateNumber } from '../utils/numbering';
 import { downloadCertificatePDF, triggerPrintCertificate } from '../utils/pdf';
-import { CVTE_COURSE, CVTE_DEFAULT_WORKLOAD } from '../services/storage';
+import { COURSE_OPTIONS, CVTE_COURSE, CVTE_DEFAULT_WORKLOAD } from '../services/storage';
 import {
   AlertCircle,
   ArrowLeft,
@@ -77,6 +77,7 @@ export const EmitirCertificadoPage: React.FC<EmitirCertificadoPageProps> = ({
   const [cpf, setCpf] = useState('');
   const [registrationNumber, setRegistrationNumber] = useState('');
   const [category, setCategory] = useState('AD');
+  const [courseCode, setCourseCode] = useState<CourseCode>('CVTE');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [workload, setWorkload] = useState(CVTE_DEFAULT_WORKLOAD);
@@ -96,8 +97,8 @@ export const EmitirCertificadoPage: React.FC<EmitirCertificadoPageProps> = ({
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
   const suggestedCertificateNumber = useMemo(
-    () => generateNextCertificateNumber(existingCertificates),
-    [existingCertificates]
+    () => generateNextCertificateNumber(existingCertificates, new Date().getFullYear(), courseCode),
+    [courseCode, existingCertificates]
   );
 
   useEffect(() => {
@@ -106,6 +107,7 @@ export const EmitirCertificadoPage: React.FC<EmitirCertificadoPageProps> = ({
     setErrors({});
 
     if (editingCertificate) {
+      setCourseCode(editingCertificate.courseCode || (editingCertificate.certificateNumber.split('/')[1] as CourseCode) || 'CVTE');
       setName(editingCertificate.name);
       setCpf(editingCertificate.cpf);
       setRegistrationNumber(editingCertificate.registrationNumber);
@@ -124,6 +126,7 @@ export const EmitirCertificadoPage: React.FC<EmitirCertificadoPageProps> = ({
     }
 
     if (reissuingFrom) {
+      setCourseCode(reissuingFrom.courseCode || (reissuingFrom.certificateNumber.split('/')[1] as CourseCode) || 'CVTE');
       setName(reissuingFrom.name);
       setCpf(reissuingFrom.cpf);
       setRegistrationNumber(reissuingFrom.registrationNumber);
@@ -144,6 +147,7 @@ export const EmitirCertificadoPage: React.FC<EmitirCertificadoPageProps> = ({
     setCpf('');
     setRegistrationNumber('');
     setCategory('AD');
+    setCourseCode('CVTE');
     setStartDate('');
     setEndDate('');
     setWorkload(CVTE_DEFAULT_WORKLOAD);
@@ -194,9 +198,9 @@ export const EmitirCertificadoPage: React.FC<EmitirCertificadoPageProps> = ({
     if (startDate && endDate && startDate > endDate) next.endDate = 'A data final não pode ser anterior à data inicial.';
     if (!Number.isFinite(workload) || workload < 1 || workload > 300) next.workload = 'Informe uma carga horária entre 1 e 300 horas/aula.';
 
-    const certMatch = cleanNumber.match(/^(\d{3})\/CVTE\/(\d{4})$/);
+    const certMatch = cleanNumber.match(/^(\d{3})\/(CVTE|MOPP|CTCP|CVTCI)\/(\d{4})$/);
     if (!cleanNumber) next.certificateNumber = 'Informe o número do certificado.';
-    else if (!certMatch || Number(certMatch[1]) === 0) next.certificateNumber = 'Use o padrão 001/CVTE/2026, com sequência maior que zero.';
+    else if (!certMatch || Number(certMatch[1]) === 0 || certMatch[2] !== courseCode) next.certificateNumber = `Use o padrão 001/${courseCode}/2026, com sequência maior que zero.`;
 
     const duplicate = existingCertificates.some(
       (cert) => cert.id !== editingCertificate?.id && normalizeCertificateNumber(cert.certificateNumber) === cleanNumber
@@ -206,7 +210,7 @@ export const EmitirCertificadoPage: React.FC<EmitirCertificadoPageProps> = ({
     if (!issueDate) next.issueDate = 'Selecione a data de emissão.';
     else {
       if (endDate && issueDate < endDate) next.issueDate = 'A emissão não pode ser anterior ao término do curso.';
-      if (certMatch && certMatch[2] !== issueDate.slice(0, 4)) next.certificateNumber = `O ano do número deve ser ${issueDate.slice(0, 4)}, igual ao ano da emissão.`;
+      if (certMatch && certMatch[3] !== issueDate.slice(0, 4)) next.certificateNumber = `O ano do número deve ser ${issueDate.slice(0, 4)}, igual ao ano da emissão.`;
     }
 
     setName(cleanName);
@@ -282,15 +286,16 @@ export const EmitirCertificadoPage: React.FC<EmitirCertificadoPageProps> = ({
     if (Object.keys(next).length) return null;
     const year = issueDate.slice(0, 4);
     const maxSequence = existingCertificates.reduce((max, cert) => {
-      const match = cert.certificateNumber.match(new RegExp(`^(\\d+)/CVTE/${year}$`, 'i'));
+      const match = cert.certificateNumber.match(new RegExp(`^(\\d+)/${courseCode}/${year}$`, 'i'));
       return match ? Math.max(max, Number(match[1])) : max;
     }, 0);
     const nowISO = new Date().toISOString();
     return addedParticipants.map((participant, index) => ({
       id: `cert-${Date.now()}-${index}`,
-      certificateNumber: `${String(maxSequence + index + 1).padStart(3, '0')}/CVTE/${year}`,
+      certificateNumber: `${String(maxSequence + index + 1).padStart(3, '0')}/${courseCode}/${year}`,
       ...participant,
-      course: CVTE_COURSE,
+      courseCode,
+      course: COURSE_OPTIONS[courseCode],
       startDate,
       endDate,
       workload: Number(workload),
@@ -314,7 +319,8 @@ export const EmitirCertificadoPage: React.FC<EmitirCertificadoPageProps> = ({
     cpf: previewParticipant?.cpf || cpf || '000.000.000-00',
     registrationNumber: previewParticipant?.registrationNumber || registrationNumber || 'DF 000000000',
     category: previewParticipant?.category || category || 'AD',
-    course: CVTE_COURSE,
+    courseCode,
+    course: COURSE_OPTIONS[courseCode],
     startDate,
     endDate,
     workload: Number(workload) || CVTE_DEFAULT_WORKLOAD,
@@ -378,7 +384,8 @@ export const EmitirCertificadoPage: React.FC<EmitirCertificadoPageProps> = ({
         cpf: cpf.trim(),
         registrationNumber: normalizeRenach(registrationNumber),
         category: normalizeCategory(category),
-        course: CVTE_COURSE,
+        courseCode,
+        course: COURSE_OPTIONS[courseCode],
         startDate,
         endDate,
         workload: Number(workload),
@@ -482,7 +489,7 @@ export const EmitirCertificadoPage: React.FC<EmitirCertificadoPageProps> = ({
         {reissuingFrom && <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4 text-xs text-blue-900"><RefreshCw className="mt-0.5 h-4 w-4 shrink-0" /><div><strong>Reemissão em andamento.</strong><p className="mt-0.5 text-blue-800">Os dados foram carregados do certificado {reissuingFrom.certificateNumber}. Um novo número será utilizado.</p></div></div>}
         {!editingCertificate && !reissuingFrom && <section className="space-y-3 rounded-lg border border-gray-200 bg-white p-5 shadow-sm"><div><h3 className="text-sm font-bold text-gray-900">Participantes</h3><p className="mt-1 text-[11px] text-gray-500">Adicione uma pessoa de cada vez; cada certificado recebe numeração sequencial.</p></div><div className="flex gap-2"><button type="button" onClick={() => setEmissionMode('single')} className={`rounded-md px-3 py-2 text-xs font-semibold ${emissionMode === 'single' ? 'bg-[#1B4332] text-white' : 'border border-gray-300 text-gray-700'}`}>Individual</button><button type="button" onClick={() => setEmissionMode('batch')} className={`rounded-md px-3 py-2 text-xs font-semibold ${emissionMode === 'batch' ? 'bg-[#1B4332] text-white' : 'border border-gray-300 text-gray-700'}`}>Adicionar mais</button></div>{emissionMode === 'batch' && <div className="rounded-md border border-emerald-200 bg-emerald-50/50 p-3"><p className="text-xs font-semibold text-[#1B4332]">{addedParticipants.length} participante{addedParticipants.length === 1 ? '' : 's'} adicionado{addedParticipants.length === 1 ? '' : 's'}</p>{addedParticipants.length > 0 && <ul className="mt-2 max-h-28 space-y-1 overflow-y-auto text-xs text-gray-700">{addedParticipants.map((participant, index) => <li key={participant.cpf} className="flex justify-between rounded bg-white px-2 py-1"><span>{participant.name}</span><span className="font-mono text-gray-500">{index + 1}</span></li>)}</ul>}<FieldError message={errors.participant} /></div>}</section>}
         <section className="space-y-4 rounded-lg border border-gray-200 bg-white p-5 shadow-sm"><div className="flex items-center gap-2 border-b border-gray-100 pb-3"><UserRound className="h-4 w-4 text-[#1B4332]" /><h3 className="text-sm font-bold text-gray-900">Dados do Participante</h3></div><div><label htmlFor="input-name" className="mb-1 block text-xs font-semibold text-gray-700">Nome completo *</label><input id="input-name" value={name} aria-invalid={!!errors.name} onChange={(e) => { setName(e.target.value); clearError('name'); }} onBlur={() => setName(normalizeName(name))} className={inputClass('name', 'uppercase')} placeholder="NOME COMPLETO" autoComplete="off" /><FieldError message={errors.name} /></div><div className="grid grid-cols-1 gap-3 sm:grid-cols-12"><div className="sm:col-span-5"><label htmlFor="input-cpf" className="mb-1 block text-xs font-semibold text-gray-700">CPF *</label><input id="input-cpf" inputMode="numeric" value={cpf} maxLength={14} aria-invalid={!!errors.cpf} onChange={handleCpfChange} className={inputClass('cpf', 'font-mono')} placeholder="000.000.000-00" autoComplete="off" /><FieldError message={errors.cpf} /></div><div className="sm:col-span-4"><label htmlFor="input-registration" className="mb-1 block text-xs font-semibold text-gray-700">Nº do Registro *</label><input id="input-registration" value={registrationNumber} maxLength={14} aria-invalid={!!errors.registrationNumber} onChange={(e) => { setRegistrationNumber(normalizeRenach(e.target.value)); clearError('registrationNumber'); }} className={inputClass('registrationNumber', 'font-mono uppercase')} placeholder="DF 786665602" autoComplete="off" /><FieldError message={errors.registrationNumber} /></div><div className="sm:col-span-3"><label htmlFor="input-category" className="mb-1 block text-xs font-semibold text-gray-700">Categoria *</label><input id="input-category" value={category} maxLength={2} aria-invalid={!!errors.category} onChange={(e) => { setCategory(normalizeCategory(e.target.value)); clearError('category'); }} className={inputClass('category', 'font-bold uppercase')} placeholder="AD" autoComplete="off" /><FieldError message={errors.category} /></div></div></section>
-        <section className="space-y-4 rounded-lg border border-gray-200 bg-white p-5 shadow-sm"><div className="flex items-center gap-2 border-b border-gray-100 pb-3"><CalendarDays className="h-4 w-4 text-[#D4AF37]" /><div><h3 className="text-sm font-bold text-gray-900">Dados do Curso</h3><p className="mt-0.5 text-[11px] text-gray-500">Modelo único do SisCert: CVTE</p></div></div><div className="rounded-md border border-emerald-100 bg-emerald-50/60 p-3 text-xs font-semibold leading-relaxed text-[#1B4332]">{CVTE_COURSE}</div><div className="grid grid-cols-1 gap-3 sm:grid-cols-3"><div><label htmlFor="input-start-date" className="mb-1 block text-xs font-semibold text-gray-700">Data inicial *</label><input id="input-start-date" type="date" value={startDate} aria-invalid={!!errors.startDate} onChange={(e) => { setStartDate(e.target.value); clearError('startDate'); clearError('endDate'); clearError('issueDate'); }} className={inputClass('startDate')} /><FieldError message={errors.startDate} /></div><div><label htmlFor="input-end-date" className="mb-1 block text-xs font-semibold text-gray-700">Data final *</label><input id="input-end-date" type="date" value={endDate} min={startDate || undefined} aria-invalid={!!errors.endDate} onChange={(e) => { setEndDate(e.target.value); clearError('endDate'); clearError('issueDate'); }} className={inputClass('endDate')} /><FieldError message={errors.endDate} /></div><div><label htmlFor="input-workload" className="mb-1 block text-xs font-semibold text-gray-700">Carga horária *</label><div className="relative"><input id="input-workload" type="number" min={1} max={300} value={workload} aria-invalid={!!errors.workload} onChange={(e) => { setWorkload(Number(e.target.value)); clearError('workload'); }} className={inputClass('workload', 'pr-16 font-semibold')} /><span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-gray-500">h/aula</span></div><FieldError message={errors.workload} /></div></div></section>
+        <section className="space-y-4 rounded-lg border border-gray-200 bg-white p-5 shadow-sm"><div className="flex items-center gap-2 border-b border-gray-100 pb-3"><CalendarDays className="h-4 w-4 text-[#D4AF37]" /><div><h3 className="text-sm font-bold text-gray-900">Dados do Curso</h3><p className="mt-0.5 text-[11px] text-gray-500">Escolha uma das quatro modalidades disponíveis.</p></div></div><div><label htmlFor="input-course" className="mb-1 block text-xs font-semibold text-gray-700">Curso *</label><select id="input-course" value={courseCode} onChange={(e) => { const nextCode = e.target.value as CourseCode; setCourseCode(nextCode); setCertificateNumber(generateNextCertificateNumber(existingCertificates, new Date().getFullYear(), nextCode)); clearError('certificateNumber'); }} className={inputClass('courseCode')}><option value="CVTE">CVTE - {COURSE_OPTIONS.CVTE}</option><option value="MOPP">MOPP - {COURSE_OPTIONS.MOPP}</option><option value="CTCP">CTCP - {COURSE_OPTIONS.CTCP}</option><option value="CVTCI">CVTCI - {COURSE_OPTIONS.CVTCI}</option></select></div><div className="rounded-md border border-emerald-100 bg-emerald-50/60 p-3 text-xs font-semibold leading-relaxed text-[#1B4332]">{COURSE_OPTIONS[courseCode]}</div><div className="grid grid-cols-1 gap-3 sm:grid-cols-3"><div><label htmlFor="input-start-date" className="mb-1 block text-xs font-semibold text-gray-700">Data inicial *</label><input id="input-start-date" type="date" value={startDate} aria-invalid={!!errors.startDate} onChange={(e) => { setStartDate(e.target.value); clearError('startDate'); clearError('endDate'); clearError('issueDate'); }} className={inputClass('startDate')} /><FieldError message={errors.startDate} /></div><div><label htmlFor="input-end-date" className="mb-1 block text-xs font-semibold text-gray-700">Data final *</label><input id="input-end-date" type="date" value={endDate} min={startDate || undefined} aria-invalid={!!errors.endDate} onChange={(e) => { setEndDate(e.target.value); clearError('endDate'); clearError('issueDate'); }} className={inputClass('endDate')} /><FieldError message={errors.endDate} /></div><div><label htmlFor="input-workload" className="mb-1 block text-xs font-semibold text-gray-700">Carga horária *</label><div className="relative"><input id="input-workload" type="number" min={1} max={300} value={workload} aria-invalid={!!errors.workload} onChange={(e) => { setWorkload(Number(e.target.value)); clearError('workload'); }} className={inputClass('workload', 'pr-16 font-semibold')} /><span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-gray-500">h/aula</span></div><FieldError message={errors.workload} /></div></div></section>
         <section className="space-y-4 rounded-lg border border-gray-200 bg-white p-5 shadow-sm"><div className="flex items-center gap-2 border-b border-gray-100 pb-3"><ShieldCheck className="h-4 w-4 text-[#1B4332]" /><h3 className="text-sm font-bold text-gray-900">Dados do Certificado</h3></div><div className="grid grid-cols-1 gap-3 sm:grid-cols-2"><div><div className="mb-1 flex items-center justify-between gap-2"><label htmlFor="input-cert-number" className="text-xs font-semibold text-gray-700">Número *</label><button type="button" onClick={() => { setCertificateNumber(suggestedCertificateNumber); clearError('certificateNumber'); }} className="text-[10px] font-semibold text-[#1B4332] hover:underline">Usar próximo: {suggestedCertificateNumber}</button></div><input id="input-cert-number" value={certificateNumber} aria-invalid={!!errors.certificateNumber} onChange={(e) => { setCertificateNumber(normalizeCertificateNumber(e.target.value)); clearError('certificateNumber'); }} className={inputClass('certificateNumber', 'font-mono font-bold uppercase')} placeholder={suggestedCertificateNumber} autoComplete="off" /><FieldError message={errors.certificateNumber} />{isManualNumber && !errors.certificateNumber && <p className="mt-1 flex items-center gap-1 text-[10px] text-amber-700"><Info className="h-3 w-3" />Número alterado manualmente. Confirme antes da emissão.</p>}</div><div><label htmlFor="input-issue-date" className="mb-1 block text-xs font-semibold text-gray-700">Data de emissão *</label><input id="input-issue-date" type="date" value={issueDate} min={endDate || undefined} aria-invalid={!!errors.issueDate} onChange={(e) => { setIssueDate(e.target.value); clearError('issueDate'); clearError('certificateNumber'); }} className={inputClass('issueDate')} /><FieldError message={errors.issueDate} /></div></div><div className="flex items-start gap-2 rounded-md border border-gray-200 bg-gray-50 p-3 text-[11px] leading-relaxed text-gray-500"><Lock className="mt-0.5 h-4 w-4 shrink-0 text-[#D4AF37]" /><span>Textos institucionais, símbolos, CNPJ e dados do diretor são fixos no certificado oficial e não podem ser alterados durante a emissão.</span></div></section>
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between"><ActionButton label="Cancelar" variant="secondary" size="md" onClick={onCancelEmission} /><div className="flex flex-col gap-2 sm:flex-row">{emissionMode === 'batch' && <ActionButton label="Adicionar participante" icon={UserRound} variant="secondary" size="md" type="button" onClick={addCurrentParticipant} />}<ActionButton label={emissionMode === 'batch' ? 'Pronto' : 'Avançar para revisão'} icon={ArrowRight} variant="primary" size="md" type="submit" /></div></div>
       </form><div className="space-y-3 lg:sticky lg:top-20 lg:col-span-6"><div className="space-y-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm"><div className="flex items-center justify-between gap-3 border-b border-gray-100 pb-3"><div><h3 className="flex items-center gap-2 text-sm font-bold"><Eye className="h-4 w-4 text-[#1B4332]" />Pré-visualização</h3><p className="text-[11px] text-gray-500">O documento atualiza em tempo real.</p></div><div className="flex items-center gap-1 rounded border border-gray-200 bg-gray-50 p-1"><button type="button" onClick={() => setPreviewZoom((p) => Math.max(70, p - 10))} className="rounded p-1 text-gray-500 hover:bg-white"><ZoomOut className="h-4 w-4" /></button><span className="min-w-9 text-center text-[10px] font-mono">{previewZoom}%</span><button type="button" onClick={() => setPreviewZoom((p) => Math.min(130, p + 10))} className="rounded p-1 text-gray-500 hover:bg-white"><ZoomIn className="h-4 w-4" /></button><button type="button" onClick={() => setIsPreviewModalOpen(true)} className="rounded p-1 text-[#1B4332] hover:bg-white"><Maximize2 className="h-4 w-4" /></button></div></div><div className="overflow-hidden rounded border border-gray-200 bg-gray-100 p-2"><div style={{ transform: `scale(${previewZoom / 100})` }} className="origin-top transition-transform"><CertificateDocument certificate={liveCertificateDraft} config={config} /></div></div></div></div></div>}
