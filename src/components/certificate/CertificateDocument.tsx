@@ -72,6 +72,7 @@ export const CertificateDocument: React.FC<CertificateDocumentProps> = ({
   const registration = certificate.registrationNumber?.trim() || '';
   const category = certificate.category?.trim()?.toUpperCase() || '';
   const workload = certificate.workload ? String(certificate.workload) : '';
+  const course = certificate.course || 'Curso Especializado para Condutores de Veículos de Transporte de Emergência';
   const number = splitCertificateNumber(certificate.certificateNumber);
   const start = splitDate(certificate.startDate);
   const end = splitDate(certificate.endDate);
@@ -134,7 +135,7 @@ export const CertificateDocument: React.FC<CertificateDocumentProps> = ({
           CERTIFICADO
         </h1>
         <div className="mt-[2.2%] uppercase text-[#725b1f] text-[clamp(9px,1.65cqw,25px)] tracking-[0.16em] font-semibold leading-tight">
-          CONDUTORES DE VEÍCULOS DE<br />TRANSPORTE DE EMERGÊNCIA
+          {course}
         </div>
         <div className="flex items-center justify-center gap-2 mt-[2%] text-[#bd8b20]">
           <span className="h-px w-[18%] bg-[#bd8b20]" /><span className="text-[clamp(8px,1cqw,15px)]">✦</span><span className="h-px w-[18%] bg-[#bd8b20]" />
@@ -161,9 +162,9 @@ export const CertificateDocument: React.FC<CertificateDocumentProps> = ({
         </p>
         <p>
           categoria “<span className="inline-block min-w-[8cqw] text-center border-b border-[#333] font-bold leading-[1.25]">{category}</span>”, concluiu com aproveitamento o{' '}
-          <em className="font-semibold">Curso Especializado para Condutores de</em>
+          <em className="font-semibold">{course}</em>
         </p>
-        <p>Veículos de Transporte de Emergência, ministrado pela IET – Forte Caxias, no período de</p>
+        <p>ministrado pela IET – Forte Caxias, no período de</p>
         <p>
           <span className="inline-block min-w-[4cqw] text-center border-b border-[#333] font-bold leading-[1.25]">{start.day}</span>{' '}
           a{' '}
