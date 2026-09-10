@@ -133,8 +133,8 @@ export const CertificateDocument: React.FC<CertificateDocumentProps> = ({
         <h1 className="font-serif text-[#123d2c] text-[clamp(26px,5.2cqw,82px)] leading-[0.9] tracking-[0.035em] font-semibold">
           CERTIFICADO
         </h1>
-        <div className="mt-[2.2%] uppercase text-[#725b1f] text-[clamp(8px,1.35cqw,20px)] tracking-[0.12em] font-semibold leading-tight">
-          {certificate.course || 'CURSO ESPECIALIZADO PARA CONDUTORES'}
+        <div className="mt-[2.2%] uppercase text-[#725b1f] text-[clamp(9px,1.65cqw,25px)] tracking-[0.16em] font-semibold leading-tight">
+          CONDUTORES DE VEÍCULOS DE<br />TRANSPORTE DE EMERGÊNCIA
         </div>
         <div className="flex items-center justify-center gap-2 mt-[2%] text-[#bd8b20]">
           <span className="h-px w-[18%] bg-[#bd8b20]" /><span className="text-[clamp(8px,1cqw,15px)]">✦</span><span className="h-px w-[18%] bg-[#bd8b20]" />
@@ -143,7 +143,7 @@ export const CertificateDocument: React.FC<CertificateDocumentProps> = ({
 
       <div className="absolute right-[11.8%] top-[30.3%] flex items-end justify-center gap-[0.35cqw] text-[#111] font-medium text-[clamp(9px,1.35cqw,21px)] whitespace-nowrap">
         <span className="min-w-[3.6cqw] text-center border-b border-[#333] pb-[0.1cqw]">{number.sequence}</span>
-        <span>/{number.code}/</span>
+        <span>/CVTE/</span>
         <span className="min-w-[4.7cqw] text-center border-b border-[#333] pb-[0.1cqw]">{number.year}</span>
       </div>
 
@@ -161,9 +161,9 @@ export const CertificateDocument: React.FC<CertificateDocumentProps> = ({
         </p>
         <p>
           categoria “<span className="inline-block min-w-[8cqw] text-center border-b border-[#333] font-bold leading-[1.25]">{category}</span>”, concluiu com aproveitamento o{' '}
-          <em className="font-semibold">{certificate.course || 'Curso Especializado para Condutores de Veículos de Transporte de Emergência'}</em>
+          <em className="font-semibold">Curso Especializado para Condutores de</em>
         </p>
-        <p>ministrado pela IET – Forte Caxias, no período de</p>
+        <p>Veículos de Transporte de Emergência, ministrado pela IET – Forte Caxias, no período de</p>
         <p>
           <span className="inline-block min-w-[4cqw] text-center border-b border-[#333] font-bold leading-[1.25]">{start.day}</span>{' '}
           a{' '}
